@@ -3,7 +3,7 @@
 ## 1. Objetivos
 
 - Criar uma Web API para gerenciamento e exportação de dados de produtos de mercado.
-- Criar um micro serviço que funcionará com uma mensageria que terá como propósito exportar os dados de um produto num arquivo JSON.
+- Criar um microsserviço que funcionará com uma mensageria que terá como propósito exportar os dados de um produto num arquivo JSON.
 
 ## 2. Escopo e Funcionalidades
 
@@ -42,10 +42,10 @@
 
 ## 3. Regras e Definições
 
-- A API deve ser desenvolvida na linguagem **Java** com **Spring Boot**.
+- A API deve ser desenvolvida na linguagem **C#** com **.NET**.
 - Incluir **Swagger** para execução dos endpoints.
-- O micro serviço pode ser desenvolvido em qualquer outra linguagem de sua preferência.
-- O banco de dados obrigatoriamente deve ser o **MongoDB**.
+- O microsserviço pode ser desenvolvido em qualquer outra linguagem de sua preferência.
+- O banco de dados obrigatoriamente deve ser o **SQL Server**.
 - Serviço de mensageria: utilizar o **RabbitMQ**, e o nome da fila deve ser `"product/export.data"`.
   - Se não houver conteúdos de estudos nas trilhas sobre mensagerias, pode buscar na internet/youtube mesmo e tentar aplicar os conceitos básicos.
 - Todos os endpoints devem seguir a padronização de **kebab-case**.
