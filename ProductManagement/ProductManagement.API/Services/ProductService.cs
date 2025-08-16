@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
-using ProductManagement.API.Model.Dtos;
+using ProductManagement.API.Model.Dtos.Category;
+using ProductManagement.API.Model.Dtos.Common;
+using ProductManagement.API.Model.Dtos.Product;
 using ProductManagement.API.Services.Interfaces;
 
 namespace ProductManagement.API.Services
@@ -84,10 +86,29 @@ namespace ProductManagement.API.Services
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<IEnumerable<ProductDto>> GetProductsAsync()
+        public async Task<PaginationResult<ProductDto>> GetProductsAsync(ProductFilterDto filter)
         {
-            return await _context.Products
-                .Where(p => p.IsActive)
+            var query = _context.Products
+                .Include(p => p.Category)
+                .AsQueryable()
+                .Where(p => p.IsActive);
+
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                query = query.Where(p => p.Name.Contains(filter.Name));
+            }
+
+            if (filter.CategoryId.HasValue)
+            {
+                query = query.Where(p => p.CategoryId == filter.CategoryId);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var products = await query
+                .OrderBy(p => p.Name)
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
@@ -99,6 +120,14 @@ namespace ProductManagement.API.Services
                     }
                 })
                 .ToListAsync();
+
+            return new PaginationResult<ProductDto>
+            {
+                Items = products,
+                Page = filter.PageNumber,
+                PageSize = filter.PageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<bool> UpdateProductAsync(Guid id, ProductUpdateDto dto)
@@ -117,6 +146,7 @@ namespace ProductManagement.API.Services
 
             product.Name = dto.Name;
             product.CategoryId = dto.CategoryId;
+            product.ModifiedAt = DateTime.UtcNow;
 
             _context.Products.Update(product);
             await _context.SaveChangesAsync();

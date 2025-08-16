@@ -1,10 +1,11 @@
-﻿using ProductManagement.API.Model.Dtos;
+﻿using ProductManagement.API.Model.Dtos.Common;
+using ProductManagement.API.Model.Dtos.Product;
 
 namespace ProductManagement.API.Services.Interfaces
 {
     public interface IProductService
     {
-        Task<IEnumerable<ProductDto>> GetProductsAsync();
+        Task<PaginationResult<ProductDto>> GetProductsAsync(ProductFilterDto filter);
         Task<ProductDto?> GetProductByIdAsync(Guid id);
         Task<bool> UpdateProductAsync(Guid id, ProductUpdateDto dto);
         Task<ProductDto> CreateProductAsync(ProductCreateDto dto);

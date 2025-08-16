@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
-using ProductManagement.API.Model.Dtos;
+using ProductManagement.API.Model.Dtos.Category;
+using ProductManagement.API.Model.Dtos.Common;
 using ProductManagement.API.Services.Interfaces;
 
 namespace ProductManagement.API.Services
@@ -29,7 +30,6 @@ namespace ProductManagement.API.Services
             };
         }
 
-        /* ajustar para deletar os produtos relacionados à categoria */
         public async Task<bool> DeleteAsync(Guid id)
         {
             var category = await _context.Categories.FindAsync(id);
@@ -56,16 +56,36 @@ namespace ProductManagement.API.Services
             return true;
         }
 
-        public async Task<IEnumerable<CategoryDto>> GetCategoriesAsync()
+        public async Task<PaginationResult<CategoryDto>> GetCategoriesAsync(CategoryFilterDto filter)
         {
-            return await _context.Categories
-                .Where(c => c.IsActive)
+            var query = _context.Categories
+                .AsQueryable()
+                .Where(c => c.IsActive);
+
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                query = query.Where(c => c.Name.Contains(filter.Name));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var categories = await query
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
                 .Select(c => new CategoryDto
                 {
                     Id = c.Id,
-                    Name = c.Name
+                    Name = c.Name,
                 })
                 .ToListAsync();
+
+            return new PaginationResult<CategoryDto>
+            {
+                Items = categories,
+                Page = filter.PageNumber,
+                PageSize = filter.PageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<CategoryDto?> GetCategoryByIdAsync(Guid id)
@@ -91,6 +111,7 @@ namespace ProductManagement.API.Services
             }
 
             category.Name = dto.Name;
+            category.ModifiedAt = DateTime.UtcNow;
 
             _context.Categories.Update(category);
             await _context.SaveChangesAsync();

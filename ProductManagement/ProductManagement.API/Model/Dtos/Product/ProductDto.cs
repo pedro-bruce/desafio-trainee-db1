@@ -1,4 +1,6 @@
-﻿namespace ProductManagement.API.Model.Dtos
+﻿using ProductManagement.API.Model.Dtos.Category;
+
+namespace ProductManagement.API.Model.Dtos.Product
 {
     public class ProductDto
     {

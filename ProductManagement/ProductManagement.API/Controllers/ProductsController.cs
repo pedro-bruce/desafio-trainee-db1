@@ -2,7 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
-using ProductManagement.API.Model.Dtos;
+using ProductManagement.API.Model.Dtos.Common;
+using ProductManagement.API.Model.Dtos.Product;
 using ProductManagement.API.Services.Interfaces;
 
 namespace ProductManagement.API.Controllers
@@ -19,9 +20,9 @@ namespace ProductManagement.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        public async Task<ActionResult<PaginationResult<Product>>> GetProducts([FromQuery] ProductFilterDto filter)
         {
-            var products = await _productService.GetProductsAsync();
+            var products = await _productService.GetProductsAsync(filter);
             return Ok(products);
         }
 

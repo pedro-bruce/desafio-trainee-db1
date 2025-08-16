@@ -2,7 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
-using ProductManagement.API.Model.Dtos;
+using ProductManagement.API.Model.Dtos.Category;
+using ProductManagement.API.Model.Dtos.Common;
 using ProductManagement.API.Services.Interfaces;
 
 namespace ProductManagement.API.Controllers
@@ -19,9 +20,9 @@ namespace ProductManagement.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
+        public async Task<ActionResult<PaginationResult<CategoryDto>>> GetCategories([FromQuery] CategoryFilterDto filter)
         {
-            var categories = await _categoryService.GetCategoriesAsync();
+            var categories = await _categoryService.GetCategoriesAsync(filter);
             return Ok(categories);
         }
 

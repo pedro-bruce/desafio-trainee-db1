@@ -1,4 +1,4 @@
-﻿namespace ProductManagement.API.Model.Dtos
+﻿namespace ProductManagement.API.Model.Dtos.Product
 {
     public class ProductCreateDto
     {
