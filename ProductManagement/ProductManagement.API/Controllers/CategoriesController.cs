@@ -22,14 +22,14 @@ namespace ProductManagement.API.Controllers
         [HttpGet]
         public async Task<ActionResult<PaginationResult<CategoryDto>>> GetCategories([FromQuery] CategoryFilterDto filter)
         {
-            var categories = await _categoryService.GetCategoriesAsync(filter);
+            var categories = await _categoryService.GetAsync(filter);
             return Ok(categories);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<CategoryDto>> GetCategory(Guid id)
         {
-            var category = await _categoryService.GetCategoryByIdAsync(id);
+            var category = await _categoryService.GetByIdAsync(id);
 
             if (category == null)
             {
@@ -47,7 +47,7 @@ namespace ProductManagement.API.Controllers
                 return BadRequest();
             }
             
-            var category = await _categoryService.UpdateCategoryAsync(id, dto);
+            var category = await _categoryService.UpdateAsync(id, dto);
 
             if (!category)
             {
@@ -67,7 +67,7 @@ namespace ProductManagement.API.Controllers
 
             try
             {
-                var category = await _categoryService.CreateCategoryAsync(dto);
+                var category = await _categoryService.CreateAsync(dto);
                 return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
             }
             catch (ArgumentException ex)

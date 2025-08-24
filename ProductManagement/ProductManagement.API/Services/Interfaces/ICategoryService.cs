@@ -5,10 +5,10 @@ namespace ProductManagement.API.Services.Interfaces
 {
     public interface ICategoryService
     {
-        Task<PaginationResult<CategoryDto>> GetCategoriesAsync(CategoryFilterDto filter);
-        Task<CategoryDto?> GetCategoryByIdAsync(Guid id);
-        Task<bool> UpdateCategoryAsync(Guid id, CategoryUpdateDto dto);
-        Task<CategoryDto> CreateCategoryAsync(CategoryCreateDto dto);
+        Task<PaginationResult<CategoryDto>> GetAsync(CategoryFilterDto filter);
+        Task<CategoryDto?> GetByIdAsync(Guid id);
+        Task<bool> UpdateAsync(Guid id, CategoryUpdateDto dto);
+        Task<CategoryDto> CreateAsync(CategoryCreateDto dto);
         Task<bool> DeleteAsync(Guid id);
     }
 }

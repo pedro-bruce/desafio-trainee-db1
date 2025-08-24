@@ -16,7 +16,7 @@ namespace ProductManagement.API.Services
             _context = context;
         }
 
-        public async Task<CategoryDto> CreateCategoryAsync(CategoryCreateDto dto)
+        public async Task<CategoryDto> CreateAsync(CategoryCreateDto dto)
         {
             var category = new Category { Name = dto.Name };
             
@@ -56,7 +56,7 @@ namespace ProductManagement.API.Services
             return true;
         }
 
-        public async Task<PaginationResult<CategoryDto>> GetCategoriesAsync(CategoryFilterDto filter)
+        public async Task<PaginationResult<CategoryDto>> GetAsync(CategoryFilterDto filter)
         {
             var query = _context.Categories
                 .AsQueryable()
@@ -88,7 +88,7 @@ namespace ProductManagement.API.Services
             };
         }
 
-        public async Task<CategoryDto?> GetCategoryByIdAsync(Guid id)
+        public async Task<CategoryDto?> GetByIdAsync(Guid id)
         {
             return await _context.Categories
                 .Where(c => c.Id == id && c.IsActive)
@@ -101,7 +101,7 @@ namespace ProductManagement.API.Services
 
         }
 
-        public async Task<bool> UpdateCategoryAsync(Guid id, CategoryUpdateDto dto)
+        public async Task<bool> UpdateAsync(Guid id, CategoryUpdateDto dto)
         {
             var category = await _context.Categories.FindAsync(id);
 

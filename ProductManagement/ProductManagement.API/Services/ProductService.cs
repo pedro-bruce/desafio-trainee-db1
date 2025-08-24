@@ -1,10 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
 using ProductManagement.API.Model.Dtos.Category;
 using ProductManagement.API.Model.Dtos.Common;
 using ProductManagement.API.Model.Dtos.Product;
 using ProductManagement.API.Services.Interfaces;
+using RabbitMQ.Client;
+using System.Text;
 
 namespace ProductManagement.API.Services
 {
@@ -17,7 +21,7 @@ namespace ProductManagement.API.Services
             _context = context;
         }
 
-        public async Task<ProductDto> CreateProductAsync(ProductCreateDto dto)
+        public async Task<ProductDto> CreateAsync(ProductCreateDto dto)
         {
             Category? category = null;
 
@@ -69,7 +73,7 @@ namespace ProductManagement.API.Services
             return true;
         }
 
-        public async Task<ProductDto?> GetProductByIdAsync(Guid id)
+        public async Task<ProductDto?> GetByIdAsync(Guid id)
         {
             return await _context.Products
                 .Where(p => p.Id == id && p.IsActive)
@@ -86,7 +90,7 @@ namespace ProductManagement.API.Services
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<PaginationResult<ProductDto>> GetProductsAsync(ProductFilterDto filter)
+        public async Task<PaginationResult<ProductDto>> GetAsync(ProductFilterDto filter)
         {
             var query = _context.Products
                 .Include(p => p.Category)
@@ -130,7 +134,7 @@ namespace ProductManagement.API.Services
             };
         }
 
-        public async Task<bool> UpdateProductAsync(Guid id, ProductUpdateDto dto)
+        public async Task<bool> UpdateAsync(Guid id, ProductUpdateDto dto)
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null)
@@ -152,6 +156,18 @@ namespace ProductManagement.API.Services
             await _context.SaveChangesAsync();
             
             return true;
+        }
+
+        public async Task PublishExportRequestAsync(Guid id)
+        {
+            var queueName = "product/export.data";
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            var messageBodyBytes = System.Text.Encoding.UTF8.GetBytes(id.ToString());
+            using var conn = await factory.CreateConnectionAsync();
+            using var channel = await conn.CreateChannelAsync();
+            
+            await channel.QueueDeclareAsync(queueName, false, false, false, null);
+            await channel.BasicPublishAsync(string.Empty, queueName, messageBodyBytes);
         }
     }
 }
