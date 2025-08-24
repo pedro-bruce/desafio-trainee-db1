@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using ProductManagement.API.Data;
+using ProductManagement.API.Model.Enums;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
@@ -34,7 +35,6 @@ class Program
 
             if (Guid.TryParse(message, out var id))
             {
-                Console.WriteLine("Entrou");
                 await ExportProductAsync(id, connectionString);
             }
         };
@@ -50,20 +50,50 @@ class Program
             .Options;
         using var dbContext = new ApplicationDbContext(options);
 
-        var product = await dbContext.Products.FindAsync(id);
+        var exportRequest = await dbContext.ExportRequests.FindAsync(id);
 
-        if (product != null)
+        if (exportRequest == null)
         {
-            Console.WriteLine("Product found.");
-            var json = System.Text.Json.JsonSerializer.Serialize(product);
-            var exportDir = Path.Combine(AppContext.BaseDirectory, "Exports");
-            Directory.CreateDirectory(exportDir);
-
-            var file = Path.Combine(exportDir, $"export_{product.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
-            await File.WriteAllTextAsync(file, json);
+            Console.WriteLine("Request not found.");
             return;
         }
 
-        Console.WriteLine("Product not found.");
+        try
+        {
+            var product = await dbContext.Products.FindAsync(exportRequest.ProductId);
+
+            if (product != null)
+            {
+                if (product.WasExported)
+                {
+                    exportRequest.Status = ExportStatus.AlreadyExported;
+                    exportRequest.Message = "Produto já exportado.";
+                    return;
+                }
+
+                var json = System.Text.Json.JsonSerializer.Serialize(product);
+                var exportDir = Path.Combine(AppContext.BaseDirectory, "Exports");
+                Directory.CreateDirectory(exportDir);
+
+                var file = Path.Combine(exportDir, $"[{product.Id}_{DateTime.Now:yyyyMMdd_HHmmss}].json");
+                await File.WriteAllTextAsync(file, json);
+
+                exportRequest.Status = ExportStatus.Success;
+                exportRequest.Message = "Produto exportado com sucesso.";
+                
+                product.WasExported = true;
+                product.ExportedAt = DateTime.UtcNow;
+                dbContext.Products.Update(product);
+            }
+        } 
+        catch (Exception ex)
+        {
+            exportRequest.Status = ExportStatus.Failed;
+            exportRequest.Message = ex.Message;
+        }
+
+        exportRequest.UpdatedAt = DateTime.UtcNow;
+        dbContext.ExportRequests.Update(exportRequest);
+        await dbContext.SaveChangesAsync();
     }
 }

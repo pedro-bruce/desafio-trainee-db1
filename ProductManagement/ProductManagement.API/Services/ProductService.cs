@@ -6,6 +6,7 @@ using ProductManagement.API.Model;
 using ProductManagement.API.Model.Dtos.Category;
 using ProductManagement.API.Model.Dtos.Common;
 using ProductManagement.API.Model.Dtos.Product;
+using ProductManagement.API.Model.Enums;
 using ProductManagement.API.Services.Interfaces;
 using RabbitMQ.Client;
 using System.Text;
@@ -158,16 +159,33 @@ namespace ProductManagement.API.Services
             return true;
         }
 
-        public async Task PublishExportRequestAsync(Guid id)
+        public async Task<Guid> PublishExportRequestAsync(Guid id)
         {
+            var request = new ExportRequest
+            {
+                ProductId = id,
+                Status = ExportStatus.Pending
+            };
+
+            _context.ExportRequests.Add(request);
+            await _context.SaveChangesAsync();
+
             var queueName = "product/export.data";
             var factory = new ConnectionFactory() { HostName = "localhost" };
-            var messageBodyBytes = System.Text.Encoding.UTF8.GetBytes(id.ToString());
+            var messageBodyBytes = System.Text.Encoding.UTF8.GetBytes(request.Id.ToString());
             using var conn = await factory.CreateConnectionAsync();
             using var channel = await conn.CreateChannelAsync();
             
             await channel.QueueDeclareAsync(queueName, false, false, false, null);
             await channel.BasicPublishAsync(string.Empty, queueName, messageBodyBytes);
+
+            return request.Id;
+        }
+
+        public async Task<ExportRequest?> GetExportStatusAsync(Guid id)
+        {
+            return await _context.ExportRequests
+                .FirstOrDefaultAsync(e => e.Id == id);
         }
     }
 }

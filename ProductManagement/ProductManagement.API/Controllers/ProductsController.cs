@@ -94,13 +94,26 @@ namespace ProductManagement.API.Controllers
         {
             try
             {
-                await _productService.PublishExportRequestAsync(id);
-                return Accepted(new { Message = "Solicitação de exportação enviada com sucesso." });
+                var requestId = await _productService.PublishExportRequestAsync(id);
+                return Accepted(new { Message = "Solicitação de exportação enviada com sucesso.", RequestId = requestId });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erro ao enviar solicitação de exportação: {ex.Message}");
             }
+        }
+
+        [HttpGet("/exports/{id}")]
+        public async Task<IActionResult> GetExportStatus(Guid id)
+        {
+            var request = await _productService.GetExportStatusAsync(id);
+
+            if (request == null)
+            {
+                return NotFound(new { Message = "Requisição não encontrada." });
+            }
+
+            return Ok(request);
         }
     }
 }
