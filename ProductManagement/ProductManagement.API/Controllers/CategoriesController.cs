@@ -4,6 +4,7 @@ using ProductManagement.API.Data;
 using ProductManagement.API.Model;
 using ProductManagement.API.Model.Dtos.Category;
 using ProductManagement.API.Model.Dtos.Common;
+using ProductManagement.API.Model.Dtos.Error;
 using ProductManagement.API.Services.Interfaces;
 
 namespace ProductManagement.API.Controllers
@@ -33,7 +34,7 @@ namespace ProductManagement.API.Controllers
 
             if (category == null)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Categoria não encontrada." });
             }
 
             return Ok(category);
@@ -44,14 +45,14 @@ namespace ProductManagement.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest();
+                return BadRequest(ModelState);
             }
             
             var category = await _categoryService.UpdateAsync(id, dto);
 
             if (!category)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Categoria não encontrada." });
             }
 
             return NoContent();
@@ -62,7 +63,7 @@ namespace ProductManagement.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest();
+                return BadRequest(ModelState);
             }
 
             try
@@ -72,7 +73,7 @@ namespace ProductManagement.API.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new ErrorResponse { ErrorMessage = ex.Message });
             }
         }
 
@@ -83,7 +84,7 @@ namespace ProductManagement.API.Controllers
 
             if (!category)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Categoria não encontrada." });
             }
 
             return NoContent();

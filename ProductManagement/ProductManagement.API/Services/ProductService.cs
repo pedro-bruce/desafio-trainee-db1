@@ -1,25 +1,20 @@
 ﻿using Microsoft.CodeAnalysis;
-using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
-using ProductManagement.API.Data;
 using ProductManagement.API.Model;
 using ProductManagement.API.Model.Dtos.Category;
 using ProductManagement.API.Model.Dtos.Common;
 using ProductManagement.API.Model.Dtos.Product;
-using ProductManagement.API.Model.Enums;
+using ProductManagement.API.Repository.Interfaces;
 using ProductManagement.API.Services.Interfaces;
-using RabbitMQ.Client;
-using System.Text;
 
 namespace ProductManagement.API.Services
 {
     public class ProductService : IProductService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IProductRepository _productRepository;
 
-        public ProductService(ApplicationDbContext context)
+        public ProductService(IProductRepository productRepository)
         {
-            _context = context;
+            _productRepository = productRepository;
         }
 
         public async Task<ProductDto> CreateAsync(ProductCreateDto dto)
@@ -28,8 +23,7 @@ namespace ProductManagement.API.Services
 
             if (dto.CategoryId.HasValue)
             {
-                category = await _context.Categories
-                    .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value && c.IsActive);
+                category = await _productRepository.GetCategoryByIdAsync(dto.CategoryId.Value);
 
                 if (category == null)
                 {
@@ -43,8 +37,7 @@ namespace ProductManagement.API.Services
                 CategoryId = dto.CategoryId
             };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            await _productRepository.CreateAsync(product);
 
             return new ProductDto
             {
@@ -60,75 +53,32 @@ namespace ProductManagement.API.Services
 
         public async Task<bool> DeleteAsync(Guid id)
         {
-            var product = await _context.Products.FindAsync(id);
-
-            if (product == null)
-            {
-                return false;
-            }
-
-            product.IsActive = false;
-            _context.Products.Update(product);
-            await _context.SaveChangesAsync();
-
-            return true;
+            return await _productRepository.DeleteAsync(id);
         }
 
         public async Task<ProductDto?> GetByIdAsync(Guid id)
         {
-            return await _context.Products
-                .Where(p => p.Id == id && p.IsActive)
-                .Select(p => new ProductDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Category = p.Category == null ? null : new CategoryDto
-                    {
-                        Id = p.Category.Id,
-                        Name = p.Category.Name
-                    }
-                })
-                .FirstOrDefaultAsync();
+            return await _productRepository.GetByIdAsync(id);
         }
 
         public async Task<PaginationResult<ProductDto>> GetAsync(ProductFilterDto filter)
         {
-            var query = _context.Products
-                .Include(p => p.Category)
-                .AsQueryable()
-                .Where(p => p.IsActive);
+            var (products, totalCount) = await _productRepository.GetAsync(filter);
 
-            if (!string.IsNullOrEmpty(filter.Name))
+            var dtos = products.Select(p => new ProductDto
             {
-                query = query.Where(p => p.Name.Contains(filter.Name));
-            }
-
-            if (filter.CategoryId.HasValue)
-            {
-                query = query.Where(p => p.CategoryId == filter.CategoryId);
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var products = await query
-                .OrderBy(p => p.Name)
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .Select(p => new ProductDto
+                Id = p.Id,
+                Name = p.Name,
+                Category = p.Category == null ? null : new CategoryDto
                 {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Category = p.Category == null ? null : new CategoryDto
-                    {
-                        Id = p.Category.Id,
-                        Name = p.Category.Name
-                    }
-                })
-                .ToListAsync();
+                    Id = p.Category.Id,
+                    Name = p.Category.Name
+                }
+            }).ToList();
 
             return new PaginationResult<ProductDto>
             {
-                Items = products,
+                Items = dtos,
                 Page = filter.PageNumber,
                 PageSize = filter.PageSize,
                 TotalCount = totalCount
@@ -137,55 +87,7 @@ namespace ProductManagement.API.Services
 
         public async Task<bool> UpdateAsync(Guid id, ProductUpdateDto dto)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                return false;
-            }
-
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-            if (!categoryExists)
-            {
-                throw new ArgumentException("Categoria não encontrada.");
-            }
-
-            product.Name = dto.Name;
-            product.CategoryId = dto.CategoryId;
-            product.ModifiedAt = DateTime.UtcNow;
-
-            _context.Products.Update(product);
-            await _context.SaveChangesAsync();
-            
-            return true;
-        }
-
-        public async Task<Guid> PublishExportRequestAsync(Guid id)
-        {
-            var request = new ExportRequest
-            {
-                ProductId = id,
-                Status = ExportStatus.Pending
-            };
-
-            _context.ExportRequests.Add(request);
-            await _context.SaveChangesAsync();
-
-            var queueName = "product/export.data";
-            var factory = new ConnectionFactory() { HostName = "localhost" };
-            var messageBodyBytes = System.Text.Encoding.UTF8.GetBytes(request.Id.ToString());
-            using var conn = await factory.CreateConnectionAsync();
-            using var channel = await conn.CreateChannelAsync();
-            
-            await channel.QueueDeclareAsync(queueName, false, false, false, null);
-            await channel.BasicPublishAsync(string.Empty, queueName, messageBodyBytes);
-
-            return request.Id;
-        }
-
-        public async Task<ExportRequest?> GetExportStatusAsync(Guid id)
-        {
-            return await _context.ExportRequests
-                .FirstOrDefaultAsync(e => e.Id == id);
+            return await _productRepository.UpdateAsync(id, dto);
         }
     }
 }

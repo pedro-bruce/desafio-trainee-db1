@@ -11,7 +11,5 @@ namespace ProductManagement.API.Services.Interfaces
         Task<bool> UpdateAsync(Guid id, ProductUpdateDto dto);
         Task<ProductDto> CreateAsync(ProductCreateDto dto);
         Task<bool> DeleteAsync(Guid id);
-        Task<Guid> PublishExportRequestAsync(Guid id);
-        Task<ExportRequest?> GetExportStatusAsync(Guid id);
     }
 }

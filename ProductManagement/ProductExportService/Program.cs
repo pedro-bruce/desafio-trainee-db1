@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using ProductManagement.API.Data;
+using ProductManagement.API.Model;
+using ProductManagement.API.Model.Dtos.Category;
+using ProductManagement.API.Model.Dtos.Product;
 using ProductManagement.API.Model.Enums;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -60,38 +63,59 @@ class Program
 
         try
         {
-            var product = await dbContext.Products.FindAsync(exportRequest.ProductId);
+            var product = await dbContext.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == exportRequest.ProductId);
 
-            if (product != null)
+            if (product == null)
             {
-                if (product.WasExported)
-                {
-                    exportRequest.Status = ExportStatus.AlreadyExported;
-                    exportRequest.Message = "Produto já exportado.";
-                    return;
-                }
-
-                var json = System.Text.Json.JsonSerializer.Serialize(product);
-                var exportDir = Path.Combine(AppContext.BaseDirectory, "Exports");
-                Directory.CreateDirectory(exportDir);
-
-                var file = Path.Combine(exportDir, $"[{product.Id}_{DateTime.Now:yyyyMMdd_HHmmss}].json");
-                await File.WriteAllTextAsync(file, json);
-
-                exportRequest.Status = ExportStatus.Success;
-                exportRequest.Message = "Produto exportado com sucesso.";
-                
-                product.WasExported = true;
-                product.ExportedAt = DateTime.UtcNow;
-                dbContext.Products.Update(product);
+                exportRequest.Status = ExportStatus.Failed;
+                exportRequest.Message = "Produto não encontrado.";
+                await UpdateDbContext(exportRequest, dbContext);
+                return;
             }
-        } 
+
+            if (product.WasExported)
+            {
+                exportRequest.Status = ExportStatus.AlreadyExported;
+                exportRequest.Message = "Produto já exportado.";
+                await UpdateDbContext(exportRequest, dbContext);
+                return;
+            }
+
+            var productDto = new ProductExportDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Category = product.Category?.Name
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(productDto);
+            var exportDir = Path.Combine(AppContext.BaseDirectory, "Exports");
+            Directory.CreateDirectory(exportDir);
+
+            var file = Path.Combine(exportDir, $"{productDto.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+            await File.WriteAllTextAsync(file, json);
+
+            exportRequest.Status = ExportStatus.Success;
+            exportRequest.Message = "Produto exportado com sucesso.";
+
+            product.WasExported = true;
+            product.ExportedAt = DateTime.UtcNow;
+            dbContext.Products.Update(product);
+
+        }
         catch (Exception ex)
         {
             exportRequest.Status = ExportStatus.Failed;
             exportRequest.Message = ex.Message;
         }
 
+        await UpdateDbContext(exportRequest, dbContext);
+    }
+
+    static async Task UpdateDbContext(ExportRequest exportRequest, ApplicationDbContext dbContext)
+    {
         exportRequest.UpdatedAt = DateTime.UtcNow;
         dbContext.ExportRequests.Update(exportRequest);
         await dbContext.SaveChangesAsync();

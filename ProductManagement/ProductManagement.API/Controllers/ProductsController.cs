@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductManagement.API.Data;
 using ProductManagement.API.Model;
 using ProductManagement.API.Model.Dtos.Common;
+using ProductManagement.API.Model.Dtos.Error;
 using ProductManagement.API.Model.Dtos.Product;
 using ProductManagement.API.Services.Interfaces;
 
@@ -13,10 +15,12 @@ namespace ProductManagement.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _productService;
+        private readonly IExportService _exportService;
 
-        public ProductsController(IProductService productService)
+        public ProductsController(IProductService productService, IExportService exportService)
         {
             _productService = productService;
+            _exportService = exportService;
         }
 
         [HttpGet]
@@ -33,7 +37,7 @@ namespace ProductManagement.API.Controllers
 
             if (product == null)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Produto não encontrado." });
             }
 
             return Ok(product);
@@ -44,14 +48,14 @@ namespace ProductManagement.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest();
+                return BadRequest(ModelState);
             }
 
             var product = await _productService.UpdateAsync(id, dto);
 
             if (!product)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Produto não encontrado." });
             }
 
             return NoContent();
@@ -72,7 +76,7 @@ namespace ProductManagement.API.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new ErrorResponse { ErrorMessage = ex.Message });
             }
         }
 
@@ -83,7 +87,7 @@ namespace ProductManagement.API.Controllers
 
             if (!product)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse { ErrorMessage = "Produto não encontrado." });
             }
 
             return NoContent();
@@ -94,7 +98,7 @@ namespace ProductManagement.API.Controllers
         {
             try
             {
-                var requestId = await _productService.PublishExportRequestAsync(id);
+                var requestId = await _exportService.PublishExportRequestAsync(id);
                 return Accepted(new { Message = "Solicitação de exportação enviada com sucesso.", RequestId = requestId });
             }
             catch (Exception ex)
@@ -106,14 +110,21 @@ namespace ProductManagement.API.Controllers
         [HttpGet("/exports/{id}")]
         public async Task<IActionResult> GetExportStatus(Guid id)
         {
-            var request = await _productService.GetExportStatusAsync(id);
+            var request = await _exportService.GetExportAsync(id);
 
             if (request == null)
             {
-                return NotFound(new { Message = "Requisição não encontrada." });
+                return NotFound(new ErrorResponse { ErrorMessage = "Requisição não encontrada." });
             }
 
-            return Ok(request);
+            return Ok(new
+            {
+                request.Id,
+                Status = request.Status.ToString(),
+                request.Message,
+                request.CreatedAt,
+                request.UpdatedAt
+            });
         }
     }
 }
